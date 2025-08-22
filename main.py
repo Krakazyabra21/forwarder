@@ -1,104 +1,63 @@
-import json
 import logging
-import uvicorn
-import asyncio
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+import ssl
 from aiogram import Bot, Dispatcher, types
-from config import config
-from handlers import register_handlers
-from middlewares import BotMessageMiddleware
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
+from aiogram.filters import Command
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+# Настройки
+API_TOKEN = '7498645289:AAHOQFCFiwMke-hm9U0wdDRucR0nj19Y3t4'
+WEBHOOK_HOST = 'https://your.domain.com'  # Ваш домен
+WEBHOOK_PATH = '/webhook'
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+WEBAPP_HOST = 'localhost'
+WEBAPP_PORT = 3001
 
-# Определяем режим работы (HTTPS для продакшена, HTTP для разработки)
-IS_PRODUCTION = config.WEBHOOK_URL.startswith("https://")
-
-# Создаем объекты бота и диспетчера
-bot = Bot(token=config.BOT_TOKEN)
+# Инициализация бота и диспетчера
+main_bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Регистрация middleware
-dp.message.outer_middleware(BotMessageMiddleware())
 
-# Регистрация обработчиков
-register_handlers(dp)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Управление жизненным циклом приложения"""
-    # Запускаем поллинг бота в фоновом режиме
-    polling_task = asyncio.create_task(dp.start_polling(bot))
-    logger.info("Бот запущен в режиме поллинга")
-
-    yield
-
-    # Останавливаем бота при завершении
-    await dp.stop_polling()
-    await polling_task
-    logger.info("Бот остановлен")
+@dp.message(Command("start"))
+async def send_welcome(message: types.Message):
+    await message.reply("Привет! Я бот с вебхуком!")
 
 
-app = FastAPI(lifespan=lifespan)
+@dp.message()
+async def echo(message: types.Message):
+    await message.answer(message.text)
 
 
-@app.post("/external_webhook")
-async def handle_external_webhook(request: Request):
-    """Эндпоинт для обработки внешних вебхуков"""
-    try:
-        # Парсим входящий вебхук
-        data = await request.json()
-        logger.info(f"Получен внешний вебхук: {data}")
-
-        # Здесь ваша логика обработки вебхука
-        # Например, отправка сообщения через бота
-        user_id = data.get("user_id")
-        message = data.get("message")
-
-        if user_id and message:
-            await bot.send_message(chat_id=user_id, text=message)
-            logger.info(f"Сообщение отправлено пользователю {user_id}")
-
-        return {"status": "success", "data": data}
-
-    except Exception as e:
-        logger.error(f"Ошибка обработки вебхука: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+async def on_startup(bot: Bot):
+    await bot.set_webhook(WEBHOOK_URL)
+    logging.info("Бот запущен и вебхук установлен")
 
 
-@app.post("/send_message")
-async def send_message_endpoint(request: Request):
-    """Кастомный эндпоинт для отправки сообщений"""
-    try:
-        # print(json.dumps(data, indent=2))
-        data = await request.json()
-
-        user_id = data["from_user"]["id"]
-        text = data.get("text", "")
-
-        message = f"Ваше сообщение: {text}"
-
-        if not user_id or not text:
-            raise ValueError("Отсутствуют user_id или text")
-
-        await bot.send_message(chat_id=user_id, text=message)
-        logger.info(f"Сообщение отправлено пользователю {user_id}: {text}")
-        return {"status": "success"}
-
-    except Exception as e:
-        logger.error(f"Ошибка отправки сообщения: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+async def on_shutdown(bot: Bot):
+    await bot.delete_webhook()
+    logging.info("Вебхук удален")
 
 
-if __name__ == "__main__":
-    uvicorn.run(
-        app,
-        host=config.WEB_SERVER_HOST,
-        port=config.WEB_SERVER_PORT,
-        reload=config.RELOAD
+def main(bot: Bot):
+    logging.basicConfig(level=logging.INFO)
+    app = web.Application()
+
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
+
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
     )
+
+    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
+
+    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    context.load_cert_chain('/path/to/fullchain.pem', '/path/to/privkey.pem')
+
+    setup_application(app, dp, bot=bot)
+    web.run_app(app, host=WEBAPP_HOST, port=WEBAPP_PORT, ssl_context=context)
+
+
+if __name__ == '__main__':
+    main(main_bot)
