@@ -81,7 +81,8 @@ async def handle_webhook(request):
         # else:
         #     logger.warning(f"⚠️ NO SMARTY URL ⚠️")
         return web.Response()
-    except:
+    except Exception as e:
+        logger.warning(f"Console-Error:  {e}")
         return web.Response(status=403)
 
 
