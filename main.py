@@ -12,7 +12,7 @@ import requests
 # Настройки
 TOKEN_API = '7484036286:AAFG0lRZbs9OJftLIR_4Pbu_E1kJ7yJWvKQ'
 SMARTY_URL: str
-local_url = ""
+local_url = "smartybotapps.ru/forwarder"
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -244,7 +244,7 @@ async def test_update_handler(request):
 
 async def on_startup(_):
     logger.info("🚀 Бот запущен")
-    await main_bot.set_webhook(local_url)
+    await main_bot.set_webhook(f"{local_url}/{TOKEN_API}")
     try:
         me = await main_bot.get_me()
         logger.info(f"🤖 Bot verified: @{me.username} (ID: {me.id})")
@@ -290,5 +290,5 @@ if __name__ == '__main__':
     web.run_app(
         app,
         host='0.0.0.0',
-        port=8000
+        port=4433
     )
