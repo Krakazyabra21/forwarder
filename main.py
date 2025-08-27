@@ -11,7 +11,7 @@ import requests
 
 # Настройки
 TOKEN_API = '7484036286:AAFG0lRZbs9OJftLIR_4Pbu_E1kJ7yJWvKQ'
-SMARTY_URL: str
+smarty_url: str = ""
 local_url = "https://smartybotapps.ru/forwarder"
 # Настройка логирования
 logging.basicConfig(
@@ -68,15 +68,13 @@ async def echo_message(message: types.Message):
 
 
 async def handle_webhook(request):
-    global SMARTY_URL
     logger.info("🌐 Webhook endpoint called")
-
     try:
         update = types.Update(**await request.json())
         # print(update)
         await dp.feed_update(bot=main_bot, update=update)
-        if SMARTY_URL:
-            response = requests.post(SMARTY_URL, request.json())
+        if smarty_url:
+            response = requests.post(smarty_url, request.json())
             logger.info(f"Response Smarty: {response.status_code}")
         else:
             logger.warning(f"⚠️ NO SMARTY URL ⚠️")
@@ -87,17 +85,18 @@ async def handle_webhook(request):
 
 
 async def set_webhook_handler(request):
-    global SMARTY_URL
+    global smarty_url
     try:
         data = await request.json()
-        webhook_url = data.get('webhook_url')
-        SMARTY_URL = webhook_url
+        smarty_url = data.get('webhook_url')
+        # SMARTY_URL = webhook_url
         if not webhook_url:
             return web.Response(
                 text=json.dumps({'error': 'webhook_url is required'}),
                 status=400,
                 content_type='application/json'
             )
+        return url
 
     except Exception as e:
         logger.error(f"❌ Error setting webhook: {e}")
@@ -276,8 +275,6 @@ async def on_shutdown(_):
     except Exception as e:
         logger.error(f"❌ Error deleting webhook on shutdown: {e}")
 
-
-print(f"{local_url}/{TOKEN_API}")
 
 app.router.add_post(f'/forwarder/{TOKEN_API}', handle_webhook)  # Webhook endpoint
 app.router.add_post('/forwarder/set_webhook', set_webhook_handler)
