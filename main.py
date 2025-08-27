@@ -75,11 +75,11 @@ async def handle_webhook(request):
         update = types.Update(**await request.json())
         # print(update)
         await dp.feed_update(bot=main_bot, update=update)
-        # if SMARTY_URL:
-        #     response = requests.post(SMARTY_URL, request.json())
-        #     logger.info(f"Response Smarty: {response.status_code}")
-        # else:
-        #     logger.warning(f"⚠️ NO SMARTY URL ⚠️")
+        if SMARTY_URL:
+            response = requests.post(SMARTY_URL, request.json())
+            logger.info(f"Response Smarty: {response.status_code}")
+        else:
+            logger.warning(f"⚠️ NO SMARTY URL ⚠️")
         return web.Response()
     except Exception as e:
         logger.warning(f"Console-Error:  {e}")
