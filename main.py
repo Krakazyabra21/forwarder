@@ -244,8 +244,11 @@ async def test_update_handler(request):
 
 async def on_startup(_):
     logger.info("🚀 Бот запущен")
-    await main_bot.set_webhook(f"{local_url}/{TOKEN_API}")
-    logger.info("Вебхук создан")
+    try:
+        await main_bot.set_webhook(f"{local_url}/{TOKEN_API}")
+        logger.info("Вебхук создан")
+    except Exception as e:
+        logger.warning(f"❌❌❌ {e}")
     try:
         me = await main_bot.get_me()
         logger.info(f"🤖 Bot verified: @{me.username} (ID: {me.id})")
@@ -287,7 +290,7 @@ if __name__ == '__main__':
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
-    logger.info("🌐 Starting web server on 0.0.0.0:8000")
+    logger.info("🌐 Starting web server on 127.0.0.1:4433")
     web.run_app(
         app,
         host='127.0.0.1',
