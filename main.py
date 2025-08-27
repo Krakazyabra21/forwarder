@@ -12,7 +12,7 @@ import requests
 # Настройки
 TOKEN_API = '7484036286:AAFG0lRZbs9OJftLIR_4Pbu_E1kJ7yJWvKQ'
 SMARTY_URL: str
-local_url = "smartybotapps.ru/forwarder"
+local_url = "https://smartybotapps.ru/forwarder"
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -245,6 +245,7 @@ async def test_update_handler(request):
 async def on_startup(_):
     logger.info("🚀 Бот запущен")
     await main_bot.set_webhook(f"{local_url}/{TOKEN_API}")
+    logger.info("Вебхук создан")
     try:
         me = await main_bot.get_me()
         logger.info(f"🤖 Bot verified: @{me.username} (ID: {me.id})")
@@ -272,7 +273,7 @@ async def on_shutdown(_):
         logger.error(f"❌ Error deleting webhook on shutdown: {e}")
 
 
-print(f"http://localhost:8000/{TOKEN_API}")
+print(f"{local_url}/{TOKEN_API}")
 
 app.router.add_post(f'/{TOKEN_API}', handle_webhook)  # Webhook endpoint
 app.router.add_post('/set_webhook', set_webhook_handler)
