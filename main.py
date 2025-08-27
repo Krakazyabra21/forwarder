@@ -88,15 +88,19 @@ async def set_webhook_handler(request):
     global smarty_url
     try:
         data = await request.json()
-        smarty_url = data.get('webhook_url')
-        # SMARTY_URL = webhook_url
+        webhook_url = data.get('webhook_url')
         if not webhook_url:
             return web.Response(
                 text=json.dumps({'error': 'webhook_url is required'}),
                 status=400,
                 content_type='application/json'
             )
-        return url
+        smarty_url = webhook_url
+        return web.Response(
+            text=json.dumps({"status": True}),
+            status=200,
+            content_type='application/json'
+        )
 
     except Exception as e:
         logger.error(f"❌ Error setting webhook: {e}")
