@@ -279,7 +279,7 @@ app.router.add_post('/set_webhook', set_webhook_handler)
 # app.router.add_post('/delete_webhook', delete_webhook_handler)
 # app.router.add_get('/webhook_info', get_webhook_info_handler)
 # app.router.add_get('/health', health_check_handler)
-# app.router.add_get('/test', test_handler)
+app.router.add_get('/test', test_handler)
 # app.router.add_post('/test_update', test_update_handler)
 
 if __name__ == '__main__':
