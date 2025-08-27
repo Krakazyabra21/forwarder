@@ -73,7 +73,7 @@ async def handle_webhook(request):
 
     try:
         update = types.Update(**await request.json())
-        print(update)
+        # print(update)
         await dp.feed_update(bot=main_bot, update=update)
         if SMARTY_URL:
             response = requests.post(SMARTY_URL, request.json())
