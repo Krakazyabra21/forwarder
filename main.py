@@ -88,7 +88,7 @@ async def set_webhook_handler(request):
     global smarty_url
     try:
         data = await request.json()
-        webhook_url = data.get('webhook_url')
+        webhook_url = data.get('url')
         if not webhook_url:
             return web.Response(
                 text=json.dumps({'error': 'webhook_url is required'}),
@@ -97,7 +97,7 @@ async def set_webhook_handler(request):
             )
         smarty_url = webhook_url
         return web.Response(
-            text=json.dumps({"status": True}),
+            text=json.dumps({"ok": True, "result": True, "description": "Webhook was set"}),
             status=200,
             content_type='application/json'
         )
@@ -105,8 +105,8 @@ async def set_webhook_handler(request):
     except Exception as e:
         logger.error(f"❌ Error setting webhook: {e}")
         return web.Response(
-            text=json.dumps({'error': str(e)}),
-            status=500,
+            text=json.dumps({"ok": False, "error_code": 400, "description": "Bad Request: wrong url"}),
+            status=400,
             content_type='application/json'
         )
 
@@ -281,7 +281,7 @@ async def on_shutdown(_):
 
 
 app.router.add_post(f'/forwarder/{TOKEN_API}', handle_webhook)  # Webhook endpoint
-app.router.add_post('/forwarder/set_webhook', set_webhook_handler)
+app.router.add_post('/forwarder/setWebhook', set_webhook_handler)
 # app.router.add_post('/delete_webhook', delete_webhook_handler)
 # app.router.add_get('/webhook_info', get_webhook_info_handler)
 # app.router.add_get('/health', health_check_handler)
