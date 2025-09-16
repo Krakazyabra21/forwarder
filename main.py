@@ -7,12 +7,15 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiohttp import web
 import asyncio
+import aiohttp
 import requests
 
 # Настройки
 TOKEN_API = '7484036286:AAFG0lRZbs9OJftLIR_4Pbu_E1kJ7yJWvKQ'
 smarty_url: str = ""
+# local_url = "https://blithely-feasible-loon.cloudpub.ru"
 local_url = "https://smartybotapps.ru/forwarder"
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -71,10 +74,9 @@ async def handle_webhook(request):
     logger.info("🌐 Webhook endpoint called")
     try:
         update = types.Update(**await request.json())
-        # print(update)
         await dp.feed_update(bot=main_bot, update=update)
         if smarty_url:
-            response = requests.post(smarty_url, request.json())
+            response = requests.post(smarty_url, json=await request.json())
             logger.info(f"Response Smarty: {response.status_code}")
         else:
             logger.warning(f"⚠️ NO SMARTY URL ⚠️")
@@ -136,12 +138,13 @@ async def delete_webhook_handler(request):
 
 
 async def get_webhook_info_handler(request):
+    global smarty_url
     try:
         webhook_info = await main_bot.get_webhook_info()
         logger.info(f"📋 Current webhook info: {webhook_info}")
 
         response_data = {
-            'url': webhook_info.url,
+            'url': smarty_url,
             'has_custom_certificate': webhook_info.has_custom_certificate,
             'pending_update_count': webhook_info.pending_update_count,
             'ip_address': webhook_info.ip_address,
@@ -166,8 +169,8 @@ async def get_webhook_info_handler(request):
 
 
 async def health_check_handler(request):
+    global smarty_url
     try:
-        # Проверяем, что бот работает
         me = await main_bot.get_me()
         logger.info(f"🤖 Bot info: {me.username} (ID: {me.id})")
 
@@ -179,11 +182,10 @@ async def health_check_handler(request):
             'timestamp': time.time()
         }
 
-        # Проверяем информацию о вебхуке
         webhook_info = await main_bot.get_webhook_info()
-        if webhook_info.url:
+        if webhook_info.url and smarty_url:
             response_data['webhook_configured'] = True
-            response_data['webhook_url'] = webhook_info.url
+            response_data['webhook_url'] = smarty_url
             response_data['pending_updates'] = webhook_info.pending_update_count
             response_data['last_error'] = webhook_info.last_error_message
 
@@ -201,7 +203,122 @@ async def health_check_handler(request):
         )
 
 
-# Тестовый endpoint для проверки сервера
+async def get_user_profile_photos_handler(request):
+    try:
+        data = await request.json()
+        user_id = data.get('user_id')
+        limit = data.get('limit', 1)
+
+        if not user_id:
+            return web.Response(
+                text=json.dumps({'error': 'user_id is required'}),
+                status=400,
+                content_type='application/json'
+            )
+
+        logger.info(f"🖼 GET USER PROFILE PHOTOS: Request for user {user_id}, limit {limit}")
+
+        profile_photos = await main_bot.get_user_profile_photos(user_id, limit=limit)
+
+        photos_data = []
+        for photo_group in profile_photos.photos:
+            group_data = []
+            for photo in photo_group:
+                file_info = await main_bot.get_file(photo.file_id)
+                photo_info = {
+                    'file_id': photo.file_id,
+                    'file_unique_id': photo.file_unique_id,
+                    'width': photo.width,
+                    'height': photo.height,
+                    'file_size': photo.file_size,
+                    'file_path': file_info.file_path
+                }
+                group_data.append(photo_info)
+            photos_data.append(group_data)
+
+        response_data = {
+            'total_count': profile_photos.total_count,
+            'photos': photos_data
+        }
+
+        return web.Response(
+            text=json.dumps(response_data, indent=2),
+            content_type='application/json'
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error getting user profile photos: {e}")
+        return web.Response(
+            text=json.dumps({'error': str(e)}),
+            status=500,
+            content_type='application/json'
+        )
+
+
+async def get_file_handler(request):
+    try:
+        data = await request.json()
+        file_id = data.get('file_id')
+
+        if not file_id:
+            return web.Response(
+                text=json.dumps({'error': 'file_id is required'}),
+                status=400,
+                content_type='application/json'
+            )
+
+        logger.info(f"📁 GET FILE: Request for file {file_id}")
+
+        file_info = await main_bot.get_file(file_id)
+
+        response_data = {
+            'file_id': file_info.file_id,
+            'file_unique_id': file_info.file_unique_id,
+            'file_size': file_info.file_size,
+            'file_path': file_info.file_path
+        }
+
+        return web.Response(
+            text=json.dumps(response_data, indent=2),
+            content_type='application/json'
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error getting file info: {e}")
+        return web.Response(
+            text=json.dumps({'error': str(e)}),
+            status=500,
+            content_type='application/json'
+        )
+
+
+async def forward_file_handler(request):
+    try:
+        file_path = request.match_info['file_path']
+        logger.info(f"📥 Forwarding file: {file_path}")
+
+        telegram_file_url = f'https://api.telegram.org/file/bot{TOKEN_API}/{file_path}'
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(telegram_file_url) as resp:
+                if resp.status == 200:
+                    # Просто передаем данные как есть, без указания content_type
+                    file_data = await resp.read()
+                    return web.Response(body=file_data)
+                else:
+                    return web.Response(
+                        text=f"Error downloading file: {resp.status}",
+                        status=resp.status
+                    )
+
+    except Exception as e:
+        logger.error(f"❌ Error forwarding file: {e}")
+        return web.Response(
+            text=json.dumps({'error': str(e)}),
+            status=500
+        )
+
+
 async def test_handler(request):
     return web.Response(
         text=json.dumps({'message': 'Server is running', 'timestamp': time.time()}),
@@ -209,7 +326,6 @@ async def test_handler(request):
     )
 
 
-# Тестовый endpoint для проверки обработчиков
 async def test_update_handler(request):
     try:
         test_update = {
@@ -280,21 +396,22 @@ async def on_shutdown(_):
         logger.error(f"❌ Error deleting webhook on shutdown: {e}")
 
 
-app.router.add_post(f'/forwarder/{TOKEN_API}', handle_webhook)  # Webhook endpoint
+# Регистрация обработчиков
+app.router.add_post(f'/forwarder/{TOKEN_API}', handle_webhook)
 app.router.add_post('/forwarder/setWebhook', set_webhook_handler)
-# app.router.add_post('/delete_webhook', delete_webhook_handler)
-# app.router.add_get('/webhook_info', get_webhook_info_handler)
-# app.router.add_get('/health', health_check_handler)
+app.router.add_get('/forwarder/getMe', health_check_handler)
 app.router.add_get('/forwarder/test', test_handler)
-# app.router.add_post('/test_update', test_update_handler)
+app.router.add_post('/forwarder/getUserProfilePhotos', get_user_profile_photos_handler)
+app.router.add_post('/forwarder/getFile', get_file_handler)
+app.router.add_get('/forwarder/{file_path:.+}', forward_file_handler)
 
 if __name__ == '__main__':
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
-    logger.info("🌐 Starting web server on 127.0.0.1:4433")
+    logger.info("🌐 Starting web server on 127.0.0.1:8000")
     web.run_app(
         app,
         host='127.0.0.1',
-        port=4433
+        port=8000
     )
