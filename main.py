@@ -169,25 +169,24 @@ async def get_webhook_info_handler(request):
 
 
 async def health_check_handler(request):
-    global smarty_url
     try:
         me = await main_bot.get_me()
         logger.info(f"🤖 Bot info: {me.username} (ID: {me.id})")
 
         response_data = {
-            'status': 'healthy',
-            'bot_username': me.username,
-            'bot_id': me.id,
-            'webhook_configured': False,
-            'timestamp': time.time()
+            'ok': True,
+            'result': {
+                'id': me.id,
+                'is_bot': True,
+                'first_name': me.first_name,
+                'username': me.username,
+                'can_join_groups': me.can_join_groups,
+                'can_read_all_group_messages': me.can_read_all_group_messages,
+                'supports_inline_queries': me.supports_inline_queries,
+                'status': 'healthy',
+                'timestamp': time.time()
+            }
         }
-
-        webhook_info = await main_bot.get_webhook_info()
-        if webhook_info.url and smarty_url:
-            response_data['webhook_configured'] = True
-            response_data['webhook_url'] = smarty_url
-            response_data['pending_updates'] = webhook_info.pending_update_count
-            response_data['last_error'] = webhook_info.last_error_message
 
         return web.Response(
             text=json.dumps(response_data, indent=2),
@@ -196,8 +195,12 @@ async def health_check_handler(request):
 
     except Exception as e:
         logger.error(f"❌ Health check failed: {e}")
+        error_response = {
+            'ok': False,
+            'description': f'Health check failed: {str(e)}'
+        }
         return web.Response(
-            text=json.dumps({'status': 'unhealthy', 'error': str(e)}),
+            text=json.dumps(error_response),
             status=500,
             content_type='application/json'
         )
