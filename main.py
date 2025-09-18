@@ -399,8 +399,8 @@ async def on_shutdown(_):
 # Регистрация обработчиков
 app.router.add_post(f'/forwarder/{TOKEN_API}', handle_webhook)
 app.router.add_post('/forwarder/setWebhook', set_webhook_handler)
-app.router.add_get('/forwarder/getMe', health_check_handler)
-app.router.add_get('/forwarder/test', test_handler)
+app.router.add_post('/forwarder/getMe', health_check_handler)
+app.router.add_post('/forwarder/test', test_handler)
 app.router.add_post('/forwarder/getUserProfilePhotos', get_user_profile_photos_handler)
 app.router.add_post('/forwarder/getFile', get_file_handler)
 app.router.add_get('/forwarder/{file_path:.+}', forward_file_handler)
@@ -413,5 +413,5 @@ if __name__ == '__main__':
     web.run_app(
         app,
         host='127.0.0.1',
-        port=8000
+        port=1111
     )
