@@ -240,8 +240,11 @@ async def get_user_profile_photos_handler(request):
             photos_data.append(group_data)
 
         response_data = {
-            'total_count': profile_photos.total_count,
-            'photos': photos_data
+            'ok': True,
+            "result": {
+                'total_count': profile_photos.total_count,
+                'photos': photos_data
+            }
         }
 
         return web.Response(
@@ -252,7 +255,7 @@ async def get_user_profile_photos_handler(request):
     except Exception as e:
         logger.error(f"❌ Error getting user profile photos: {e}")
         return web.Response(
-            text=json.dumps({'error': str(e)}),
+            text=json.dumps({'ok': False}),
             status=500,
             content_type='application/json'
         )
@@ -275,10 +278,13 @@ async def get_file_handler(request):
         file_info = await main_bot.get_file(file_id)
 
         response_data = {
-            'file_id': file_info.file_id,
-            'file_unique_id': file_info.file_unique_id,
-            'file_size': file_info.file_size,
-            'file_path': file_info.file_path
+            'ok': True,
+            'result': {
+                'file_id': file_info.file_id,
+                'file_unique_id': file_info.file_unique_id,
+                'file_size': file_info.file_size,
+                'file_path': file_info.file_path
+            }
         }
 
         return web.Response(
